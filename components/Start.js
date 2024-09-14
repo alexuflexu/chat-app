@@ -15,6 +15,7 @@ const Start = ({ navigation }) => {
       <View style={styles.container}>
         <Text style={styles.title}>Chat App</Text>
         <View style={styles.inputContainer}>
+          {/* User chooses username */}
           <TextInput
             style={styles.textInput}
             value={name}
@@ -22,6 +23,7 @@ const Start = ({ navigation }) => {
             placeholder='Your Name'
             placeholderTextColor='#757083'
           />
+          {/* User chooses backgroung color */}
           <Text style={styles.colorText}>Choose background color:</Text>
           <View style={styles.colorContainer}>
             {colors.map((color, index) => (
@@ -32,6 +34,7 @@ const Start = ({ navigation }) => {
               />
             ))}
           </View>
+          {/* User starts chat */}
           <TouchableOpacity
             style={styles.button}
             onPress={() => navigation.navigate('Chat', { name, backgroundColor })}
