@@ -1,35 +1,71 @@
 import { useState, useEffect } from "react";
 import { StyleSheet, View, Platform, KeyboardAvoidingView } from 'react-native';
-import { Bubble, GiftedChat } from "react-native-gifted-chat";
-import { collection, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { Bubble, GiftedChat, InputToolbar } from "react-native-gifted-chat";
+import { collection, addDoc, onSnapshot, query, orderBy, where } from "firebase/firestore";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const Chat = ({ route, navigation, db }) => {
+const Chat = ({ route, navigation, db, auth, isConnected }) => {
   const [messages, setMessages] = useState([]);
-  const { name, backgroundColor } = route.params;
+  const { name, backgroundColor, id } = route.params;
 
   useEffect(() => {
     navigation.setOptions({ title: name });
-    const q = query(collection(db, "messages"), orderBy("createdAt", "desc"));
-    const unsubMessages = onSnapshot(q, (docs) => {
-      let newMessages = [];
-      docs.forEach(doc => {
-        const data = doc.data();
-        const createdAt = data.createdAt ? new Date(data.createdAt.toMillis()) : new Date();
-        newMessages.push({
-          _id: doc.id,
-          ...data,
-          createdAt
-        })
-      })
-      setMessages(newMessages);
-    })
-    return () => {
-      if (unsubMessages) unsubMessages();
-    }
   }, []);
 
+  const loadCachedMessages = async () => {
+    const cachedMessages = await AsyncStorage.getItem("messages") || "[]";
+    setMessages(JSON.parse(cachedMessages));
+  }
+
+  useEffect(() => {
+    let unsubMessages;
+    if (isConnected === true) {
+      if (unsubMessages) unsubMessages();
+      unsubMessages = null;
+
+      const q = query(
+        collection(db, "messages"),
+        where("uid", "==", id),
+        orderBy("createdAt", "desc")
+      );
+
+      unsubMessages = onSnapshot(q, (documentsSnapshot) => {
+        let newMessages = [];
+        documentsSnapshot.forEach(doc => {
+          const data = doc.data();
+          const createdAt = data.createdAt ? new Date(data.createdAt.toMillis()) : new Date();
+          newMessages.push({
+            _id: doc.id,
+            ...data,
+            createdAt
+          });
+        });
+        cacheMessages(newMessages);
+        setMessages(newMessages);
+      });
+    } else loadCachedMessages();
+
+    return () => {
+      if (unsubMessages) unsubMessages();
+    };
+  }, [isConnected]);
+
+  const cacheMessages = async (messagesToCache) => {
+    try {
+      await AsyncStorage.setItem('messages', JSON.stringify(messagesToCache));
+    } catch (error) {
+      console.log(error.message);
+    }
+  };
+
   const onSend = (newMessages) => {
-    addDoc(collection(db, "messages"), newMessages[0]);
+    if (isConnected) {
+      addDoc(collection(db, "messages"), {
+        ...newMessages[0],
+        createdAt: new Date(),
+        uid: id
+      });
+    }
   }
 
   const renderBubble = (props) => {
@@ -46,6 +82,11 @@ const Chat = ({ route, navigation, db }) => {
     />
   }
 
+  const renderInputToolbar = (props) => {
+    if (isConnected) return <InputToolbar {...props} />;
+    else return null;
+  }
+
   return (
     <View style={[styles.container, { backgroundColor }]}>
       {Platform.OS === 'ios' ? (
@@ -53,10 +94,11 @@ const Chat = ({ route, navigation, db }) => {
           <GiftedChat
             messages={messages}
             renderBubble={renderBubble}
+            renderInputToolbar={renderInputToolbar}
             onSend={messages => onSend(messages)}
             user={{
-              _id: route.params.id,
-              name: route.params.name
+              _id: id,
+              name: name
             }}
           />
         </KeyboardAvoidingView>
@@ -64,10 +106,11 @@ const Chat = ({ route, navigation, db }) => {
         <GiftedChat
           messages={messages}
           renderBubble={renderBubble}
+          renderInputToolbar={renderInputToolbar}
           onSend={messages => onSend(messages)}
           user={{
-            _id: route.params.id,
-            name: route.params.name
+            _id: id,
+            name: name
           }}
         />
       )}
