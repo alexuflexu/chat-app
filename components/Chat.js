@@ -3,8 +3,10 @@ import { StyleSheet, View, Platform, KeyboardAvoidingView } from 'react-native';
 import { Bubble, GiftedChat, InputToolbar } from "react-native-gifted-chat";
 import { collection, addDoc, onSnapshot, query, orderBy, where } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import MapView from 'react-native-maps';
+import CustomActions from "./CustomActions";
 
-const Chat = ({ route, navigation, db, auth, isConnected }) => {
+const Chat = ({ route, navigation, db, isConnected, storage }) => {
   const [messages, setMessages] = useState([]);
   const { name, backgroundColor, id } = route.params;
 
@@ -25,7 +27,6 @@ const Chat = ({ route, navigation, db, auth, isConnected }) => {
 
       const q = query(
         collection(db, "messages"),
-        where("uid", "==", id),
         orderBy("createdAt", "desc")
       );
 
@@ -80,41 +81,56 @@ const Chat = ({ route, navigation, db, auth, isConnected }) => {
         }
       }}
     />
+
   }
 
   const renderInputToolbar = (props) => {
-    if (isConnected) return <InputToolbar {...props} />;
+    if(isConnected) return <InputToolbar {...props} /> ; 
     else return null;
+}
+
+  const renderCustomActions = (props) => {
+    return <CustomActions userID={id} storage={storage} onSend={onSend} {...props} />;
+  };
+
+  const renderCustomView = (props) => {
+    const { currentMessage } = props;
+    if (currentMessage.location) {
+      return (
+        <MapView
+          style={{
+            width: 150,
+            height: 100,
+            borderRadius: 13,
+            margin: 3
+          }}
+          region={{
+            latitude: currentMessage.location.latitude,
+            longitude: currentMessage.location.longitude,
+            latitudeDelta: 0.0922,
+            longitudeDelta: 0.0421,
+          }}
+        />
+      );
+    }
+    return null;
   }
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
-      {Platform.OS === 'ios' ? (
-        <KeyboardAvoidingView behavior="padding" style={{flex: 1}}>
-          <GiftedChat
-            messages={messages}
-            renderBubble={renderBubble}
-            renderInputToolbar={renderInputToolbar}
-            onSend={messages => onSend(messages)}
-            user={{
-              _id: id,
-              name: name
-            }}
-          />
-        </KeyboardAvoidingView>
-      ) : (
-        <GiftedChat
-          messages={messages}
-          renderBubble={renderBubble}
-          renderInputToolbar={renderInputToolbar}
-          onSend={messages => onSend(messages)}
-          user={{
-            _id: id,
-            name: name
-          }}
-        />
-      )}
-      {Platform.OS === 'android' ? <KeyboardAvoidingView behavior="height" /> : null}
+      <GiftedChat
+        messages={messages}
+        renderBubble={renderBubble}
+        renderInputToolbar={renderInputToolbar}
+        renderActions={renderCustomActions}
+        renderCustomView={renderCustomView}
+        onSend={messages => onSend(messages)}
+        user={{
+          _id: id,
+          name
+        }}
+      />
+      {Platform.OS === 'android' ? <KeyboardAvoidingView behavior="height"  /> : null}
     </View>
   )
 }
