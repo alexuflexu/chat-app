@@ -31,7 +31,7 @@ A mobile chat application built with React Native and Firebase, offering real-ti
 - react-native-safe-area-context
 - react-native-screens
 
-- ### Installation
+### Installation
 
 ## How to Clone
 To clone the repository, run: `git clone https://github.com/alexuflexu/chat-app.git`
